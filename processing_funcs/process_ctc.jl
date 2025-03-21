@@ -22,8 +22,8 @@ function process_ctc(data::LegendData, period::DataPeriod, run::DataRun, categor
    energy_types::Vector{Symbol} = Symbol.(ctc_config.energy_types), juleana_logo::Bool = false, reprocess::Bool = false)
 
     @debug "Create pars db"
-    mkpath(joinpath(data_path(data.par.rpars.ctc), string(period)))
-    pars_db = PropDict(data.par.rpars.ctc[period, run])
+    mkpath(joinpath(data_path(data.par[category].rpars.ctc), string(period)))
+    pars_db = PropDict(data.par[category].rpars.ctc[period, run])
     pars_db = ifelse(reprocess, PropDict(), pars_db)
     if reprocess @info "Start reprocessing" end
 
@@ -144,8 +144,8 @@ function process_ctc(data::LegendData, period::DataPeriod, run::DataRun, categor
 
     # save results to pars 
     result_ctc = PropDict(Dict("$channel" => result_dict))
-    writelprops(data.par.rpars.ctc[period], run, result_ctc)
-    writevalidity(data.par.rpars.ctc, filekey, (period, run))
+    writelprops(data.par[category].rpars.ctc[period], run, result_ctc)
+    writevalidity(data.par[category].rpars.ctc, filekey, (period, run))
     @info "Saved pars to disk"
     return (result = result_ctc, status = processed_dict)
 end 

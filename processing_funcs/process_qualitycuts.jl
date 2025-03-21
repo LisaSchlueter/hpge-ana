@@ -14,7 +14,7 @@ function process_qualitycuts(data::LegendData, period::DataPeriod, run::DataRun,
                             reprocess::Bool = false, qc_config::PropDict = data.metadata.config.qc.qc_config.default)
 
     # check if quality cut pars already exist
-    qc_file = joinpath(mkpath(data_path(data.par.rpars.qc[period])), "$(string(run)).json")
+    qc_file = joinpath(mkpath(data_path(data.par[category].rpars.qc[period])), "$(string(run)).json")
      if isfile(qc_file) && !reprocess
          @info "Quality cuts (qc) file already exist for $category period $period - run $run - channel $channel - you're done!"
          return
@@ -32,7 +32,7 @@ function process_qualitycuts(data::LegendData, period::DataPeriod, run::DataRun,
 
     # save results to pars 
     result_qc = PropDict(Dict("$channel" => qc))
-    writelprops(data.par.rpars.qc[period], run, result_qc)
+    writelprops(data.par[category].rpars.qc[period], run, result_qc)
     @info "Saved pars to disk"
 
     # add qcflag to dsp tier. 

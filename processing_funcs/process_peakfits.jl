@@ -6,7 +6,7 @@ function process_peakfits(data::LegendData, period::DataPeriod, run::DataRun, ca
     reprocess::Bool = true, juleana_logo::Bool = false)
     e_type = :e_trap; 
 
-    if !reprocess && haskey(data.par.rpars.ecal[period, run, channel], e_type)
+    if !reprocess && haskey(data.par[category].rpars.ecal[period, run, channel], e_type)
         @info "Energy calibration already exists for all $(e_types)  -> you're done!"
         return
     end
@@ -50,6 +50,6 @@ function process_peakfits(data::LegendData, period::DataPeriod, run::DataRun, ca
     @info "Save peak fit plot to $pname_pulser"  
 
     result_ecal = (µ = result.μ, µ_pulser = result_pulser.μ, fit = result, fit_pulser = result_pulser)
-    writelprops(data.par.rpars.ecal[period], run, PropDict("$channel" => result_ecal))
+    writelprops(data.par[category].rpars.ecal[period], run, PropDict("$channel" => result_ecal))
     @info "Saved pars to disk"
 end

@@ -27,7 +27,7 @@ function process_hit(data::LegendData, period::DataPeriod, run::DataRun, categor
     end 
 
     # load energy calibration
-    ecal_pd = data.par.rpars.ecal[period, run, channel]
+    ecal_pd = data.par[category].rpars.ecal[period, run, channel]
 
     for f in eachindex(filekeys)
         filekey = filekeys[f]

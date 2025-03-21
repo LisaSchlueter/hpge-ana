@@ -9,7 +9,7 @@ function process_decaytime(data::LegendData, period::DataPeriod, run::DataRun, c
         return
     end
 
-    det = _channel2detector(data, channel)
+    det_ged = _channel2detector(data, channel)
     @debug "Create pars db"
     mkpath(joinpath(data_path(data.par.rpars.pz), string(period)))
     
@@ -36,9 +36,9 @@ function process_decaytime(data::LegendData, period::DataPeriod, run::DataRun, c
     end
     savelfig(LegendMakie.lsavefig, fig, data, filekey, channel, :decay_time)
 
-    @info "Found decay time at $(round(u"µs", result.µ, digits=2)) for channel $channel / det $det"
+    @info "Found decay time at $(round(u"µs", result.µ, digits=2)) for channel $channel / det $det_ged"
     result_pz = (τ = result.μ, fit = result)
-    writelprops(data.par.rpars.pz[period], run, PropDict("$channel" => result_pz))
+    writelprops(data.par[category].rpars.pz[period], run, PropDict("$channel" => result_pz))
     @info "Saved pars to disk"
     display(fig)
     return fig
