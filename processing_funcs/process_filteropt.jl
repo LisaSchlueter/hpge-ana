@@ -28,14 +28,14 @@ function process_filteropt(data::LegendData, period::DataPeriod, run::DataRun, c
     @info "Optimize filter for period $period, run $run, channel $channel /det $det - $filter_types"
 
     # check if decaytime pars already exist
-    fltopt_file = joinpath(mkpath(data_path(data.par.rpars.fltopt[period])), "$(string(run)).json")
+    fltopt_file = joinpath(mkpath(data_path(data.par[category].rpars.fltopt[period])), "$(string(run)).json")
     if isfile(fltopt_file) && !reprocess
         @info "Filter optimization file already exist for $category period $period - run $run - channel $channel - you're done!"
         return
     end
 
     # prepare results dict
-    mkpath(joinpath(data_path(data.par.rpars.fltopt), string(period)))
+    mkpath(joinpath(data_path(data.par[category].rpars.fltopt), string(period)))
     result_filteropt_dict = Dict{Symbol, NamedTuple}()
     @debug "Created path for filter optimization results"
 
@@ -122,7 +122,7 @@ function process_filteropt(data::LegendData, period::DataPeriod, run::DataRun, c
         result_filteropt_dict[filter_type] =  process_filteropt_fltr(filter_type)
     end
     result = PropDict(Dict("$channel" => result_filteropt_dict))
-    writelprops(data.par.rpars.fltopt[period], run, result)
+    writelprops(data.par[category].rpars.fltopt[period], run, result)
     @info "Saved pars to disk"
 end
 
@@ -133,7 +133,7 @@ function process_filteropt(data::LegendData, period::DataPeriod, run::DataRun, c
     pz_config = dataprod_config(data).dsp(filekeys[1]).pz.default
 
     peak =  Symbol(pz_config.peak)
-    τ_pz = mvalue(get_values(data.par.rpars.pz[period, run, channel]).τ)
+    τ_pz = mvalue(get_values(data.par[category].rpars.pz[period, run, channel]).τ)
     @debug "Loaded decay time for pole-zero correction: $τ_pz"
 
     process_filteropt(data, period, run, category, channel, dsp_config, τ_pz, peak; kwargs...) 

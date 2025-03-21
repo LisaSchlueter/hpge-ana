@@ -76,7 +76,7 @@ function process_dsp(data::LegendData, period::DataPeriod, run::DataRun, categor
     @info "use default DSP config and filter parameter "
     filekeys = search_disk(FileKey, data.tier[DataTier(:raw), category , period, run])
     dsp_config = DSPConfig(dataprod_config(data).dsp(filekeys[1]).default)
-    τ_pz = mvalue(get_values(data.par.rpars.pz[period, run, channel]).τ)
-    pars_filter = data.par.rpars.fltopt[period,run,channel]
+    τ_pz = mvalue(get_values(data.par[category].rpars.pz[period, run, channel]).τ)
+    pars_filter = data.par[category].rpars.fltopt[period,run,channel]
     process_dsp(data, period, run, category, channel, dsp_config, τ_pz, pars_filter; kwargs...)
 end 
