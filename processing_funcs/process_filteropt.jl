@@ -43,7 +43,11 @@ function process_filteropt(data::LegendData, period::DataPeriod, run::DataRun, c
     filekeys = search_disk(FileKey, data.tier[DataTier(:raw), category , period, run])
     if peak == :all 
         data_peak = read_ldata(data, DataTier(:raw), filekeys, channel)
-        data_peak = merge(data_peak, (gamma_line = [1170*u"keV"],))
+        data_peak = if Symbol(category) == :cal 
+            merge(data_peak, (gamma_line = [1170*u"keV"],))
+        elseif Symbol(category) == :bch
+            merge(data_peak, (gamma_line = [1000*u"keV"],))
+        end
     else
         data_peak  = read_ldata((peak), data, :jlpeaks, category, period, run, channel)
     end 
@@ -106,7 +110,12 @@ function process_filteropt(data::LegendData, period::DataPeriod, run::DataRun, c
         e_min, e_max = _quantile_truncfit(e_grid; qmin = ft_qmin, qmax = ft_qmax)
         result_ft, report_ft = fit_fwhm_ft(e_grid, e_grid_ft, result_rt.rt,  e_min, e_max, fwhm_rel_cut_fit; peak = data_peak.gamma_line[1])
         @info "Found optimal flattop-time: $(result_ft.ft) with FWHM $(round(u"keV", result_ft.min_fwhm, digits=2))"
-        p = LegendMakie.lplot(report_ft, title = get_plottitle(filekey, det, "$peak FT Scan"; additiional_type=string(filter_type)), juleana_logo = false)
+        p = Figure()
+        LegendMakie.lplot!(report_ft, title = get_plottitle(filekey, det, "$peak FT Scan"; additiional_type=string(filter_type)), juleana_logo = false)
+        if Symbol(category) == :bch
+            axs =  p.content[findall(map(x -> x isa Axis, p.content))]
+            axs[1].ylabel = "FWHM (a.u.)"
+        end
         pname_ft = plt_folder * split(LegendDataManagement.LDMUtils.get_pltfilename(data, filekeys[1], channel, Symbol("fwhm_ft_scan_$(filter_type)")),"/")[end]
         d = LegendDataManagement.LDMUtils.get_pltfolder(data, filekeys[1], Symbol("fwhm_ft_scan_$(filter_type)"))
         ifelse(isempty(readdir(d)), rm(d), nothing )

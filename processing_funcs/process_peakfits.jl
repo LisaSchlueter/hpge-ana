@@ -3,7 +3,7 @@
     Process the peak fits for the benchtest data. 
 """
 function process_peakfits(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId;
-    reprocess::Bool = true, juleana_logo::Bool = false)
+    reprocess::Bool = true, juleana_logo::Bool = false,  nbins::Int = 50 , rel_cut_fit::T = 0.1) where {T<:Real}
     e_type = :e_trap; 
 
     if !reprocess && haskey(data.par[category].rpars.ecal[period, run, channel], e_type)
@@ -24,12 +24,10 @@ function process_peakfits(data::LegendData, period::DataPeriod, run::DataRun, ca
     qmin, qmax = 0.0, 1.0
     emin = quantile(e_uncal, qmin)
     emax = quantile(e_uncal, qmax)
-    nbins = 50
-    rel_cut_fit = 0.05
     cuts_τ = cut_single_peak(e_uncal, emin, emax,; n_bins=nbins, relative_cut=rel_cut_fit)
     result, report = fit_single_trunc_gauss(e_uncal, cuts_τ)
     @debug "Found mean energy $(round(result.µ, digits=2)) for channel $channel / det $det"
-    fig_peakfit = LegendMakie.lplot(report, figsize = (600, 430), titlesize = 17, title = get_plottitle(filekey, det, "Energy Distribution"), juleana_logo = false, xlabel = "Energy (ADC)")
+    fig_peakfit = LegendMakie.lplot(report, figsize = (600, 430), titlesize = 17, title = get_plottitle(filekey, det, "Energy Distribution"), juleana_logo = juleana_logo, xlabel = "Energy (ADC)")
     pname = plt_folder * _get_pltfilename(data, filekey, channel, Symbol("peakfit_$(e_type)"))
     save(pname, fig_peakfit )
     @info "Save peak fit plot to $pname"
@@ -39,8 +37,6 @@ function process_peakfits(data::LegendData, period::DataPeriod, run::DataRun, ca
     qmin, qmax = 0.0, 1.0
     emin = quantile(e_pulser, qmin)
     emax = quantile(e_pulser, qmax)
-    nbins = 50
-    rel_cut_fit = 0.05
     cuts_τ = cut_single_peak(e_pulser, emin, emax,; n_bins=nbins, relative_cut=rel_cut_fit)
     result_pulser, report_pulser = fit_single_trunc_gauss(e_pulser, cuts_τ)
     @debug "Found mean energy $(round(result.µ, digits=2)) for channel $channel / det $det"
