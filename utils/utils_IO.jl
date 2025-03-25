@@ -310,6 +310,9 @@ function skutek_csv_to_lh5(data::LegendData, period::DataPeriod, run::DataRun, c
         elseif chmode == :pulser
             wvfs = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel1)), channel1)])
             pulser = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel2)), channel2)])
+        elseif chmode == :single 
+            wvfs = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel1)), channel1)])
+            wvfs_ch2 = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel2)), channel2)])
         end 
 
         # save to lh5 files 
@@ -318,7 +321,12 @@ function skutek_csv_to_lh5(data::LegendData, period::DataPeriod, run::DataRun, c
         eventnumber = n_max .+ collect(1:length(wvfs))
 
         fid = lh5open(h5name, "w")
-        fid["$channel/raw/waveform"]  = wvfs
+        if chmode == :single
+            fid["$channel/raw/waveform_ch1"]  = wvfs
+            fid["$channel/raw/waveform_ch2"]  = wvfs_ch2
+        else
+            fid["$channel/raw/waveform"]  = wvfs
+        end 
         fid["$channel/raw/daqenergy"] = maximum.(extrema.(wvfs.signal)) .- minimum.(extrema.(wvfs.signal)) #DAQ energy not available in oscilloscope, approx with difference between max and min, needed for compatibility with LEGEND functions
         fid["$channel/raw/eventnumber"]  = eventnumber
         fid["$channel/raw/timestamp"]  = timestamp_unix 
