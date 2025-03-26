@@ -3,13 +3,12 @@ function rms(x::Vector{T}) where {T <: Real}
 end
 
 """
-    filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, τ_pz::Quantity{T}, ft::Quantity{T}, grid_rt::StepRangeLen{Quantity{<:Float64}}, bl_window::ClosedInterval{<:Unitful.Time{T}}, flt_length_cusp::Quantity{T}; cusp_scale::T = 3750.0, τ_cusp::Quantity{<:AbstractFloat} = 10000000.0u"µs") where T<:Real
-    filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, τ_pz::Quantity{T}, ft::Quantity{T}, grid_rt::StepRangeLen{Quantity{<:Float64}}, bl_window::ClosedInterval{<:Unitful.Time{T}}; kwargs...) where T<:Real
-    filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, τ_pz::Quantity{T}, dsp_config::DSPConfig; kwargs...) where T<:Real
-
+    filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, dsp_config::DSPConfig, τ_pz::Quantity{T}; ft::Quantity{T}= 0.0u"µs", τ_cusp::Quantity{<:AbstractFloat} = 10000000.0u"µs", τ_zac::Quantity{<:AbstractFloat} = 10000000.0u"µs" ) where T<:Real
+    filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, dsp_config::DSPConfig; kwargs... )
 DSP filter optimization to find best rise-time (for a given flat-top time) to minimize ENC noise. This is an alternative way to calculate the enc noise compared to `dsp_trap_rt_optimization`.
 Strategy: 
-- Shift waveforms to have a common baseline, and deconvolute them with the pole-zero correction
+    filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, dsp_config::DSPConfig, τ_pz::Quantity{T}; ft::Quantity{T}= 0.0u"µs", τ_cusp::Quantity{<:AbstractFloat} = 10000000.0u"µs", τ_zac::Quantity{<:AbstractFloat} = 10000000.0u"µs" ) where T<:Real
+- Shift waveforms to have a common baseline, and deconvolute them with the pole-zero correction (in case τ_pz > 0.0u"µs" )
 - Filter waveforms with given rise-time and flat-top time
 - Build histogram out of all samples in baseline from all waveforms. Remove bins at the beginning and end of the waveform to avoid edge effects.
 - Calculate the RMS of the baseline noise --> ENC noise
@@ -17,15 +16,12 @@ Strategy:
 Inputs:
 - `filter_type::Symbol`: filter type (:trap or :cusp)
 - `wvfs::ArrayOfRDWaveforms`: raw waveforms to be filtered
-- `τ_pz::Quantity{T}`: pole-zero decay time 
+- `dsp_config::DSPConfig`: DSP configuration object containing relevant parameters: `ft`, `grid_rt`, `bl_window`, `flt_length_cusp`,  `flt_length_zac`
+- `τ_pz::Quantity{T}`: pole-zero decay time. If τ_pz = 0.0u"µs" (or none given), no pole-zero correction is applied.
+Optional inputs:
 - `ft::Quantity{T}`: fixed flat-top time for optimization
-- `grid_rt::StepRangeLen{Quantity{<:Float64}}`: grid of rise-times to scan
-- `bl_window::ClosedInterval{<:Unitful.Time{T}}`: baseline window to calculate noise
-- `flt_length_cusp::Quantity{T}`: flat-top length; only relevant for cusp filter
-- `cusp_scale::T`: scale factor for cusp filter; only relevant for cusp filter
 - `τ_cusp::Quantity{<:AbstractFloat}`: cusp decay time; only relevant for cusp filter
-Alternatively, a `dsp_config` can be given as input instead of `ft`, `grid_rt`, `bl_window`, `flt_length_cusp`.
-- `dsp_config::DSPConfig`: DSP configuration object
+- `τ_zac::Quantity{<:AbstractFloat}`: cusp decay time; only relevant for zac filter
 """
 function filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, dsp_config::DSPConfig, τ_pz::Quantity{T}; 
              ft::Quantity{T}= 0.0u"µs", τ_cusp::Quantity{<:AbstractFloat} = 10000000.0u"µs", τ_zac::Quantity{<:AbstractFloat} = 10000000.0u"µs" ) where T<:Real
@@ -48,9 +44,13 @@ function filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDW
     # waveforms: shift baseline and deconvolute (pole-zero)
     bl_stats = signalstats.(wvfs, leftendpoint(bl_window), rightendpoint(bl_window))
     wvfs_shift = shift_waveform.(wvfs, -bl_stats.mean)
-    deconv_flt = InvCRFilter(τ_pz)
-    wvfs_pz = deconv_flt.(wvfs_shift)
-
+    wvfs_pz = if τ_pz > 0.0u"µs"
+        deconv_flt = InvCRFilter(τ_pz)
+        deconv_flt.(wvfs_shift)
+    else
+        @debug "no decay time given - skip pole-zero correction"
+        wvfs_shift
+    end 
     # STEP 1: rise-time optimization 
     # calculate baseline rms after filtering 
     # filtered waveforms are already truncated to valid windows. no additional truncation needed.
@@ -85,4 +85,14 @@ function filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDW
     end
     return result, report 
 end
+
+
+function noise_sweep(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, dsp_config::DSPConfig; kwargs... ) 
+    result, report  = filteropt_rt_optimization_blnoise(filter_type, wvfs, dsp_config,  0.0u"µs"; kwargs... )
+
+    return (rt = result.rt, min_enc = result.min_enc, enc_grid_rt = report.enc_grid_rt, enc = report.enc), report 
+end 
+
+
+
 
