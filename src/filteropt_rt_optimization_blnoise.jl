@@ -56,32 +56,47 @@ function filteropt_rt_optimization_blnoise(filter_type::Symbol, wvfs::ArrayOfRDW
     # filtered waveforms are already truncated to valid windows. no additional truncation needed.
     noise = zeros(length(grid_rt))
     for (i, rt) in enumerate(collect(grid_rt))
-        if filter_type == :trap
-            wvfs_flt =  TrapezoidalChargeFilter(rt, ft).(wvfs_pz)   # filtered waveforms 
-        elseif filter_type == :cusp
-            wvfs_flt = CUSPChargeFilter(rt, ft, τ_cusp, flt_length_cusp, cusp_scale).(wvfs_pz) 
-        elseif filter_type == :zac
-            wvfs_flt = ZACChargeFilter(rt, ft, τ_zac, flt_length_zac, zac_scale).(wvfs_pz)
-        end
-        valid_bins = findall(leftendpoint(bl_window) .<=  wvfs_flt[1].time .<=rightendpoint(bl_window)) # bins within baseline of filtered waveform 
-        bl_trap = filter.(isfinite, map(x-> x.signal[valid_bins], wvfs_flt)) # baselines - cut bins in beginning and end 
-        noise[i] = rms(vcat(bl_trap...))
+        if 2 * rt + ft >= wvfs_pz[1].time[end]
+            noise[i] = NaN
+        else
+            if filter_type == :trap
+                wvfs_flt =  TrapezoidalChargeFilter(rt, ft).(wvfs_pz)   # filtered waveforms 
+            elseif filter_type == :cusp
+                wvfs_flt = CUSPChargeFilter(rt, ft, τ_cusp, flt_length_cusp, cusp_scale).(wvfs_pz) 
+            elseif filter_type == :zac
+                wvfs_flt = ZACChargeFilter(rt, ft, τ_zac, flt_length_zac, zac_scale).(wvfs_pz)
+            end
+            valid_bins = findall(leftendpoint(bl_window) .<=  wvfs_flt[1].time .<=rightendpoint(bl_window)) # bins within baseline of filtered waveform 
+            bl_trap = filter.(isfinite, map(x-> x.signal[valid_bins], wvfs_flt)) # baselines - cut bins in beginning and end 
+            noise[i] = if length(valid_bins) > 0
+                rms(vcat(bl_trap...))
+            else
+                NaN
+            end
+        end 
     end
 
     # find optimal shaping time: 
     if  all(.!isfinite.(noise))
         @error "Error: no finite noise values found for filter type $filter_type - try adjusting grid_rt."
     end
-    result, report = let enc = noise[findall(isfinite.(noise))], rt = ustrip.(collect(grid_rt))[findall(isfinite.(noise))]
-        if length(enc) >= 4
-            f_interp = BSplineKit.interpolate(rt, enc, BSplineOrder(4))
-        else
-            f_interp = LinearInterpolation(rt, enc)
+
+    # remove all NaN values from noise array  (too long rise times)
+    grid_rt = ustrip.(collect(grid_rt))[findall(isfinite.(noise))]
+    noise = noise[findall(isfinite.(noise))]
+
+    result, report = let noise = noise, grid_rt = grid_rt
+        f_interp = if length(noise) >= 4
+            BSplineKit.interpolate(grid_rt, noise, BSplineOrder(4))
+        elseif length(noise) >= 2
+            LinearInterpolation(grid_rt, noise)
+        else 
+            x -> NaN
         end
-        result = optimize(f_interp, minimum(rt), maximum(rt)) 
+        result = optimize(f_interp, minimum(grid_rt), maximum(grid_rt)) 
         rt_opt = Optim.minimizer(result)*u"µs" # optimial rise time for trap filter
-        min_enc = Optim.minimum(result)
-        (rt = rt_opt, min_enc = min_enc), (rt = rt_opt, min_enc = min_enc, enc_grid_rt = grid_rt, enc = noise, f_interp = f_interp)
+        min_noise = Optim.minimum(result)
+        (rt_opt = rt_opt, min_noise = min_noise), (rt_opt = rt_opt, min_noise = min_noise, rt = grid_rt.*u"µs", noise = noise, f_interp = f_interp)
     end
     return result, report 
 end
@@ -90,7 +105,7 @@ end
 function noise_sweep(filter_type::Symbol, wvfs::ArrayOfRDWaveforms, dsp_config::DSPConfig; kwargs... ) 
     result, report  = filteropt_rt_optimization_blnoise(filter_type, wvfs, dsp_config,  0.0u"µs"; kwargs... )
 
-    return (rt = result.rt, min_enc = result.min_enc, enc_grid_rt = report.enc_grid_rt, enc = report.enc), report 
+    return (rt_opt = result.rt_opt, min_noise = result.min_noise, rt = report.rt, noise = report.noise), report 
 end 
 
 
