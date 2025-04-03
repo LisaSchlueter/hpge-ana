@@ -303,9 +303,8 @@ function skutek_csv_to_lh5(data::LegendData, period::DataPeriod, run::DataRun, c
         nsamples = length(channel1[1])
         times = 0.0u"µs":timestep:((nsamples - 1)*timestep)
 
-        if chmode == :diff
+        if (chmode == :diff) || (chmode == :single)
             ch_diff = channel1 .- channel2
-            # convert to waveforms 
             wvfs = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel1)), ch_diff)])
         elseif chmode == :pulser
             wvfs = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel1)), channel1)])
@@ -333,6 +332,9 @@ function skutek_csv_to_lh5(data::LegendData, period::DataPeriod, run::DataRun, c
         fid["$channel/raw/baseline"] = fill(NaN, length(wvfs)) # not available in csv files, but needed for compatibility with LEGEND functions
         if chmode == :pulser
             fid["$channel/raw/pulser"]  = pulser
+        elseif chmode == :single 
+            fid["$channel/raw/waveform_ch1"]  = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel1)), channel1)])
+            fid["$channel/raw/waveform_ch2"]  = ArrayOfRDWaveforms([RDWaveform(t, signal) for (t, signal) in zip(fill(times, length(channel2)), channel2)])
         end
         @info "saved $(length(wvfs)) waveforms in .lh5 files with filekey: $filekey"
         close(fid)

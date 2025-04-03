@@ -20,7 +20,7 @@ OUTPUT:
 - save the calibration plots to disk (in generated/jlplt/rplt/...)
 """
 function process_energy_calibration(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId, ecal_config::PropDict;
-         reprocess::Bool = true, e_types::Vector{<:Symbol} = [:e_trap, :e_cusp, :e_zac], juleana_logo::Bool = false)
+         reprocess::Bool = true, e_types::Vector{<:Symbol} = [:e_trap, :e_cusp, :e_zac], juleana_logo::Bool = false, plot_residuals::Symbol= :percent)
 
     if !reprocess && all([haskey(data.par[category].rpars.ecal[period, run, channel], e_type) for e_type in e_types])
         @info "Energy calibration already exists for all $(e_types)  -> you're done!"
@@ -97,8 +97,7 @@ function process_energy_calibration(data::LegendData, period::DataPeriod, run::D
             fep_guess = report_simple.peak_guess,
             peakhists = report_simple.peakhists,
             peakstats = report_simple.peakstats)
-        fig_simple = LegendMakie.lplot(report_simple_alt, titlesize = 16,  title = get_plottitle(filekey, det, "Simple Calibration"; additiional_type=string(e_type)), cal = true, juleana_logo = juleana_logo)
-        # Makie.current_axis().titlesize = 16;
+        fig_simple = LegendMakie.lplot(report_simple_alt, titlesize = 16,  title = get_plottitle(filekey, det, "Simple Calibration"; additional_type=string(e_type)), cal = true, juleana_logo = juleana_logo)
         [delete!(leg) for leg in fig_simple.content if leg isa Legend]
         vl = vlines!([report_simple.peak_guess * ustrip(report_simple.c)], color = :red2, label = "Peak Guess", alpha = 0.5, linewidth = 3)
         axislegend(Makie.current_axis(), [vl], ["Peak Guess"], position = :lt)
@@ -111,7 +110,7 @@ function process_energy_calibration(data::LegendData, period::DataPeriod, run::D
         result_fit, report_fit = fit_peaks(result_simple.peakhists, result_simple.peakstats, gamma_names; 
                                     e_unit=result_simple.unit, calib_type=:th228, fit_func = fit_funcs, m_cal_simple=m_cal_simple)
         pname = plt_folder * _get_pltfilename(data, filekey, channel, Symbol("peak_fits_$(e_type)"))
-        fig_fit = LegendMakie.lplot(report_fit, figsize = (600, 400*length(report_fit)), title = get_plottitle(filekey, det, "Peak Fits"; additiional_type=string(e_type)), juleana_logo = juleana_logo, ylims_res = (-10, 10))
+        fig_fit = LegendMakie.lplot(report_fit, figsize = (600, 400*length(report_fit)), title = get_plottitle(filekey, det, "Peak Fits"; additional_type=string(e_type)), juleana_logo = juleana_logo, ylims_res = (-10, 10))
         save(pname, fig_fit)
         @info "Save peak fits plot to $(pname)"
 
@@ -132,12 +131,12 @@ function process_energy_calibration(data::LegendData, period::DataPeriod, run::D
             # replace residual plot with percent plot . 
             # legs = fig.content[findall(map(x -> x isa Legend, fig.content))]
             axs =  fig.content[findall(map(x -> x isa Axis, fig.content))]
-            res_max = maximum(abs.(report.gof.residuals_norm))
             xvalues = mvalue.(report.x)
             yvalues = mvalue.(report.y)
             yfit_values = mvalue.(report.f_fit(xvalues))
             residuals = 100 * (yvalues .- yfit_values) ./ yfit_values
             res_max =  maximum(abs.(residuals))
+            res_max = res_max < 0.15 ? 0.15 : res_max
             x_nofit = mvalue.(μ_notfit)
             y_nofit = mvalue.(ustrip.(pp_notfit))
             residuals_nofit = 100 * (y_nofit .- mvalue.(report.f_fit(x_nofit))) ./ mvalue.(report.f_fit(x_nofit))
@@ -150,7 +149,9 @@ function process_energy_calibration(data::LegendData, period::DataPeriod, run::D
         
             Makie.hspan!(ax2, [-0.1], [0.1], color = :silver, alpha = 0.7)
             Makie.hlines!(ax2, [0], [1], color = :silver, linestyle = :solid, linewidth = 2)
-            Makie.scatter!(ax2, x_nofit, residuals_nofit, color = :silver, strokecolor = :black, strokewidth = 1)
+            if !isempty(x_nofit)
+                Makie.scatter!(ax2, x_nofit, residuals_nofit, color = :silver, strokecolor = :black, strokewidth = 1)
+            end
             Makie.scatter!(ax2, xvalues, residuals, color = :black)#, markersize = markersize)
             fig
             Makie.linkxaxes!(axs[1], ax2)
@@ -162,7 +163,10 @@ function process_energy_calibration(data::LegendData, period::DataPeriod, run::D
             ax2.yticklabelspace = yspace
             fig 
         end 
-        replace_resplot(fig_calib, report_calib)
+        if plot_residuals == :percent
+            pname_calib = replace(pname_calib, ".png" => "_percent.png")
+            replace_resplot(fig_calib, report_calib)
+        end 
         save(pname_calib, fig_calib)
         @info "Save calibration curve plot to $(pname_calib)"
     
@@ -178,7 +182,7 @@ function process_energy_calibration(data::LegendData, period::DataPeriod, run::D
         pp_notfit = [gamma_lines_dict[p] for p in gamma_names if !(p in gamma_names_fwhm_fit)]
         pname_fwhm = plt_folder * _get_pltfilename(data, filekey, channel, Symbol("fwhm_$(e_type)"))
         fig_fwhm = Figure()
-        LegendMakie.lplot!(report_fwhm, additional_pts=(peaks = pp_notfit, fwhm = fwhm_notfit), titlesize = 17, title = get_plottitle(filekey, det, "FWHM"; additiional_type=string(e_type)), juleana_logo = juleana_logo)
+        LegendMakie.lplot!(report_fwhm, additional_pts=(peaks = pp_notfit, fwhm = fwhm_notfit), titlesize = 17, title = get_plottitle(filekey, det, "FWHM"; additional_type=string(e_type)), juleana_logo = juleana_logo)
         axs =  fig_fwhm.content[findall(map(x -> x isa Axis, fig_fwhm.content))]
         Makie.ylims!(axs[1],  mvalue(report_fwhm.f_fit(0)), 5)
         resmax =  maximum(abs.(report_fwhm.gof.residuals_norm))
