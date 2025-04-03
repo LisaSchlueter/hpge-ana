@@ -25,7 +25,7 @@ reprocess: Bool, default is false
 - peakpos 
 Also, peak files containting only waveforms from peaks in the calibration spectrum are saved to jlpeaks folder.
 """
-function process_peak_split(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId, ecal_config::PropDict, dsp_config::DSPConfig, qc_config::PropDict; reprocess::Bool = false, plotHist::Bool = true)
+function process_peak_split(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId, ecal_config::PropDict, dsp_config::DSPConfig, qc_config::PropDict; reprocess::Bool = false, plotHist::Bool = true, peakfinder_gamma::Union{Int, Float64} = NaN)
                         
     filekeys = search_disk(FileKey, data.tier[DataTier(:raw), category , period, run])
     peak_folder =  asic.tier[DataTier(:jlpeaks), category , period, run] * "/"
@@ -56,6 +56,14 @@ function process_peak_split(data::LegendData, period::DataPeriod, run::DataRun, 
         gamma_names =  [ecal_config.th228_names[end]]
         left_window_sizes = 1.5 * ecal_config.th228_left_window_sizes[end]
         right_window_sizes = 1.5 * ecal_config.th228_right_window_sizes[end] 
+    end
+
+    if peakfinder_gamma !== NaN
+        gamma_lines =  gamma_lines[peakfinder_gamma]
+        gamma_names =  gamma_names[peakfinder_gamma]
+        left_window_sizes = left_window_sizes[peakfinder_gamma]
+        right_window_sizes = right_window_sizes[peakfinder_gamma]
+        @info "use only peakfinder_gamma $(peakfinder_gamma) for peak search"
     end
 
     # result_peaksearch = Dict()
