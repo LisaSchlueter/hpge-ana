@@ -28,7 +28,7 @@ Also, peak files containting only waveforms from peaks in the calibration spectr
 function process_peak_split(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId, ecal_config::PropDict, dsp_config::DSPConfig, qc_config::PropDict; reprocess::Bool = false, plotHist::Bool = true, peakfinder_gamma::Union{Int, Float64} = NaN)
                         
     filekeys = search_disk(FileKey, data.tier[DataTier(:raw), category , period, run])
-    peak_folder =  asic.tier[DataTier(:jlpeaks), category , period, run] * "/"
+    peak_folder =  data.tier[DataTier(:jlpeaks), category , period, run] * "/"
     if !ispath(peak_folder)
         mkpath(peak_folder)
         @info "create path: $peak_folder"
@@ -124,7 +124,7 @@ function process_peak_split(data::LegendData, period::DataPeriod, run::DataRun, 
     end
 
     # do peaksearch on all filekeys 
-    e_uncal =  filter(x-> x >= qc_config.e_trap.min, read_ldata(:daqenergy, asic, DataTier(:raw), filekeys, channel));
+    e_uncal =  filter(x-> x >= qc_config.e_trap.min, read_ldata(:daqenergy, data, DataTier(:raw), filekeys, channel));
     if isempty(e_uncal)
          @error "No energy values >= $(qc_config.e_trap.min) found"
     end

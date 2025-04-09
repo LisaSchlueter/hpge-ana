@@ -46,7 +46,7 @@ function process_qualitycuts(data::LegendData, period::DataPeriod, run::DataRun,
                 @debug "remove old qc values in $fname"
             end
         end
-        eventnumbers_fk = read_ldata(:eventnumber, asic, :jldsp, fk, channel);
+        eventnumbers_fk = read_ldata(:eventnumber, data, :jldsp, fk, channel);
         qc_indices = findall(x -> x in eventnumbers_fk, qc.eventnumber)
         fdsp = lh5open(fname, "cw")
         fdsp["$channel/jldsp/qc"] = qc.wvf_keep.all[qc_indices]

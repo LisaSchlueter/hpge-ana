@@ -43,7 +43,7 @@ function process_decaytime(data::LegendData, period::DataPeriod, run::DataRun, c
     display(fig)
     return fig
 end
-# export process_decaytime
+export process_decaytime
 
 function process_decaytime(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId,
     pz_config::PropDict, bl_window::ClosedInterval{<:Unitful.Time{<:T}}, tail_window::ClosedInterval{<:Unitful.Time{<:T}}; kwargs...) where T <: Real
