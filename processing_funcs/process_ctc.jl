@@ -18,6 +18,8 @@ Optional:
 - `reprocess::Bool`: reprocess the files or not
 - `juleana_logo::Bool`: add juleana logo to plots
 """
+function process_ctc end
+export process_ctc
 function process_ctc(data::LegendData, period::DataPeriod, run::DataRun, category::Union{Symbol, DataCategory}, channel::ChannelId, ecal_config::PropDict, ctc_config::PropDict; 
    energy_types::Vector{Symbol} = Symbol.(ctc_config.energy_types), juleana_logo::Bool = false, reprocess::Bool = false)
 
